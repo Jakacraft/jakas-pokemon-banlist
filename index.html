@@ -3,12 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Banlist</title>
+  <title>Jakacraft's Pokémon Banlist</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Spectral', Georgia, serif;
       background: #0e0b14;
       color: #ddd6f0;
       min-height: 100vh;
@@ -144,7 +147,39 @@
       margin: 0 auto;
     }
 
-    .text-muted { color: #4a3f66; font-size: 0.8rem; }
+    .site-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .site-header img.logo {
+      width: 72px;
+      height: 72px;
+      image-rendering: pixelated;
+      flex-shrink: 0;
+    }
+
+    .site-header h1 {
+      margin-bottom: 0;
+    }
+
+    .ability-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #3d2a5c;
+      color: #c9b8f0;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+
     .text-error { color: #e74c3c; font-size: 0.8rem; }
 
     #status-bar {
@@ -162,8 +197,10 @@
 <body>
 <div class="container">
 
-  <h1>Banlist</h1>
-  <p class="subtitle">Updated automatically from the source sheet.</p>
+  <div class="site-header">
+    <img class="logo" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/566.png" alt="Archen" />
+    <h1>Jakacraft's Pokémon Banlist</h1>
+  </div>
   <div id="status-bar"></div>
 
   <!-- ── Pokémon ─────────────────────────────────────── -->
@@ -202,9 +239,19 @@
     </table>
   </div>
 
-</div>
+  <!-- ── Abilities ─────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Abilities</h2>
+      <span class="count" id="count-abilities"></span>
+    </div>
+    <div class="divider"></div>
+    <table>
+      <tbody id="abilities-tbody"></tbody>
+    </table>
+  </div>
 
-<script>
+</div>
   // ════════════════════════════════════════════════════════════
   //  CONFIGURATION
   //  Replace the value below with your Google Sheet ID.
@@ -215,9 +262,10 @@
 
   // These must match the tab names inside your Google Sheet exactly.
   const TABS = {
-    pokemon : 'Pokemon',
-    moves   : 'Moves',
-    items   : 'Items',
+    pokemon   : 'Pokemon',
+    moves     : 'Moves',
+    items     : 'Items',
+    abilities : 'Abilities',
   };
 
   // ── Type badge colours ────────────────────────────────────
@@ -374,21 +422,32 @@
     }
   }
 
+  async function loadAbilities() {
+    const tbody = document.getElementById('abilities-tbody');
+    const names = await fetchSheet(TABS.abilities);
+    document.getElementById('count-abilities').textContent = `${names.length}`;
+
+    for (const name of names) {
+      const tr = tbody.insertRow();
+
+      const badge = document.createElement('span');
+      badge.className = 'ability-badge';
+      badge.textContent = 'A';
+
+      td(tr, badge, 'col-icon');
+      td(tr, name, 'col-name');
+    }
+  }
+
   // ════════════════════════════════════════════════════════════
   //  Boot
   // ════════════════════════════════════════════════════════════
   (async () => {
     const bar = document.getElementById('status-bar');
 
-    if (SHEET_ID === 'YOUR_GOOGLE_SHEET_ID_HERE') {
-      bar.textContent = '⚠ No Sheet ID set — open index.html and replace SHEET_ID at the top of the <script>.';
-      bar.className = 'error';
-      return;
-    }
-
     bar.textContent = 'Loading…';
     try {
-      await Promise.all([loadPokemon(), loadMoves(), loadItems()]);
+      await Promise.all([loadPokemon(), loadMoves(), loadItems(), loadAbilities()]);
       bar.textContent = '';
     } catch (err) {
       bar.textContent = `⚠ Could not load sheet data. Check your Sheet ID and sharing settings. (${err.message})`;
