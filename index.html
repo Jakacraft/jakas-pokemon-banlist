@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Banlist</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0e0b14;
+      color: #ddd6f0;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+      color: #c9b8f0;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: #4a3f66;
+      margin-bottom: 40px;
+    }
+
+    .section {
+      margin-bottom: 40px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 2px;
+    }
+
+    .section-header h2 {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #7b5ea7;
+    }
+
+    .section-header .count {
+      font-size: 0.7rem;
+      color: #4a3f66;
+    }
+
+    .divider {
+      height: 1px;
+      background: #2a1f3d;
+      margin-bottom: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #1c1528;
+      transition: background 0.1s;
+    }
+
+    tbody tr:hover {
+      background: #170f28;
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    td {
+      padding: 9px 10px;
+      vertical-align: middle;
+      font-size: 0.9rem;
+    }
+
+    .col-icon {
+      width: 44px;
+      text-align: center;
+      padding-left: 0;
+    }
+
+    .col-name {
+      font-weight: 500;
+    }
+
+    .col-dex {
+      width: 72px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.8rem;
+      color: #4a3f66;
+      padding-right: 2px;
+    }
+
+    img.poke-sprite {
+      width: 40px;
+      height: 40px;
+      image-rendering: pixelated;
+      display: block;
+      margin: 0 auto;
+    }
+
+    img.item-sprite {
+      width: 24px;
+      height: 24px;
+      image-rendering: pixelated;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .type-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      color: #fff;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .placeholder {
+      width: 24px;
+      height: 24px;
+      background: #2a1f3d;
+      border-radius: 3px;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .text-muted { color: #4a3f66; font-size: 0.8rem; }
+    .text-error { color: #e74c3c; font-size: 0.8rem; }
+
+    #status-bar {
+      font-size: 0.8rem;
+      color: #4a3f66;
+      margin-bottom: 24px;
+      min-height: 18px;
+    }
+
+    #status-bar.error {
+      color: #e74c3c;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>Banlist</h1>
+  <p class="subtitle">Updated automatically from the source sheet.</p>
+  <div id="status-bar"></div>
+
+  <!-- ── Pokémon ─────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Pokémon</h2>
+      <span class="count" id="count-pokemon"></span>
+    </div>
+    <div class="divider"></div>
+    <table>
+      <tbody id="pokemon-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- ── Moves ──────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Moves</h2>
+      <span class="count" id="count-moves"></span>
+    </div>
+    <div class="divider"></div>
+    <table>
+      <tbody id="moves-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- ── Items ──────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Items</h2>
+      <span class="count" id="count-items"></span>
+    </div>
+    <div class="divider"></div>
+    <table>
+      <tbody id="items-tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  // ════════════════════════════════════════════════════════════
+  //  CONFIGURATION
+  //  Replace the value below with your Google Sheet ID.
+  //  The ID is the long string in your sheet URL:
+  //  https://docs.google.com/spreadsheets/d/  ← ID here →  /edit
+  // ════════════════════════════════════════════════════════════
+  const SHEET_ID = 'YOUR_GOOGLE_SHEET_ID_HERE';
+
+  // These must match the tab names inside your Google Sheet exactly.
+  const TABS = {
+    pokemon : 'Pokemon',
+    moves   : 'Moves',
+    items   : 'Items',
+  };
+
+  // ── Type badge colours ────────────────────────────────────
+  const TYPE_COLOR = {
+    normal  : '#9099A1', fire    : '#E62829', water   : '#2980EF',
+    electric: '#FAC000', grass   : '#3FA129', ice     : '#3DCEF3',
+    fighting: '#D84B11', poison  : '#9141CB', ground  : '#AC7C44',
+    flying  : '#81B9EF', psychic : '#EF4179', bug     : '#91A119',
+    rock    : '#AFA981', ghost   : '#704170', dragon  : '#5060E1',
+    dark    : '#5A4949', steel   : '#60A1B8', fairy   : '#EF70EF',
+  };
+
+  // ════════════════════════════════════════════════════════════
+  //  Helpers
+  // ════════════════════════════════════════════════════════════
+
+  /**
+   * Turns a display name into a PokeAPI slug.
+   * e.g. "Mr. Mime" → "mr-mime"  |  "Farfetch'd" → "farfetchd"
+   * Special: Nidoran♂ → "nidoran-m", Nidoran♀ → "nidoran-f"
+   */
+  function toSlug(name) {
+    return name.toLowerCase()
+      .replace(/♂/g, '-m')
+      .replace(/♀/g, '-f')
+      .replace(/['.]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  /** Parse the first column from a Google Sheets CSV export. */
+  function parseFirstCol(csvText) {
+    return csvText
+      .split(/\r?\n/)
+      .map(line => {
+        // Strip surrounding quotes if present
+        const col = line.split(',')[0];
+        return col.replace(/^"|"$/g, '').trim();
+      })
+      .filter(Boolean);
+  }
+
+  /** Fetch a sheet tab and return column-A values as an array. */
+  async function fetchSheet(tabName) {
+    const url =
+      `https://docs.google.com/spreadsheets/d/${SHEET_ID}` +
+      `/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Sheet "${tabName}" returned HTTP ${res.status}`);
+    const text = await res.text();
+    return parseFirstCol(text);
+  }
+
+  /** Fetch from PokeAPI, returns null on any error. */
+  async function pokeGet(path) {
+    try {
+      const res = await fetch(`https://pokeapi.co/api/v2/${path}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch { return null; }
+  }
+
+  /** Append a <td> to a row. content can be a string (innerHTML) or an Element. */
+  function td(tr, content, cls) {
+    const cell = document.createElement('td');
+    if (cls) cell.className = cls;
+    if (content instanceof HTMLElement) cell.appendChild(content);
+    else cell.innerHTML = content;
+    tr.appendChild(cell);
+    return cell;
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  Section loaders
+  // ════════════════════════════════════════════════════════════
+
+  async function loadPokemon() {
+    const tbody = document.getElementById('pokemon-tbody');
+    const names = await fetchSheet(TABS.pokemon);
+    document.getElementById('count-pokemon').textContent = `${names.length}`;
+
+    for (const name of names) {
+      const tr = tbody.insertRow();
+
+      const img = Object.assign(document.createElement('img'), {
+        className: 'poke-sprite', alt: name,
+      });
+      td(tr, img, 'col-icon');
+      td(tr, name, 'col-name');
+      const dexCell = td(tr, '<span class="text-muted">…</span>', 'col-dex');
+
+      const data = await pokeGet(`pokemon/${toSlug(name)}`);
+      if (data) {
+        img.src = data.sprites.front_default ?? '';
+        dexCell.textContent = `#${String(data.id).padStart(4, '0')}`;
+      } else {
+        img.style.opacity = '0';
+        dexCell.innerHTML = '<span class="text-error">?</span>';
+      }
+    }
+  }
+
+  async function loadMoves() {
+    const tbody = document.getElementById('moves-tbody');
+    const names = await fetchSheet(TABS.moves);
+    document.getElementById('count-moves').textContent = `${names.length}`;
+
+    for (const name of names) {
+      const tr = tbody.insertRow();
+
+      const badge = Object.assign(document.createElement('span'), {
+        className: 'type-badge', textContent: '…',
+      });
+      badge.style.background = '#ccc';
+
+      td(tr, badge, 'col-icon');
+      td(tr, name, 'col-name');
+
+      const data = await pokeGet(`move/${toSlug(name)}`);
+      if (data) {
+        const t = data.type.name;
+        badge.textContent = t[0].toUpperCase() + t.slice(1);
+        badge.style.background = TYPE_COLOR[t] ?? '#888';
+      } else {
+        badge.textContent = '?';
+        badge.style.background = '#ccc';
+      }
+    }
+  }
+
+  async function loadItems() {
+    const tbody = document.getElementById('items-tbody');
+    const names = await fetchSheet(TABS.items);
+    document.getElementById('count-items').textContent = `${names.length}`;
+
+    for (const name of names) {
+      const tr = tbody.insertRow();
+
+      const img = Object.assign(document.createElement('img'), {
+        className: 'item-sprite', alt: name,
+      });
+      td(tr, img, 'col-icon');
+      td(tr, name, 'col-name');
+
+      const data = await pokeGet(`item/${toSlug(name)}`);
+      if (data && data.sprites?.default) {
+        img.src = data.sprites.default;
+      } else {
+        const ph = document.createElement('span');
+        ph.className = 'placeholder';
+        img.replaceWith(ph);
+      }
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  Boot
+  // ════════════════════════════════════════════════════════════
+  (async () => {
+    const bar = document.getElementById('status-bar');
+
+    if (SHEET_ID === 'YOUR_GOOGLE_SHEET_ID_HERE') {
+      bar.textContent = '⚠ No Sheet ID set — open index.html and replace SHEET_ID at the top of the <script>.';
+      bar.className = 'error';
+      return;
+    }
+
+    bar.textContent = 'Loading…';
+    try {
+      await Promise.all([loadPokemon(), loadMoves(), loadItems()]);
+      bar.textContent = '';
+    } catch (err) {
+      bar.textContent = `⚠ Could not load sheet data. Check your Sheet ID and sharing settings. (${err.message})`;
+      bar.className = 'error';
+    }
+  })();
+</script>
+</body>
+</html>
